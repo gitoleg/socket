@@ -1,0 +1,12 @@
+B _build
+B _build/lib
+
+S .
+S lib/
+
+PKG lwt
+PKG lwt.unix
+PKG lwt.syntax
+PKG uuidm
+
+EXT lwt
