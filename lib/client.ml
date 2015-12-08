@@ -6,13 +6,16 @@ type t = Lwt_unix.file_descr
 
 type 'a result = ('a, exn) Result.t
 
-let create port =
-  let addr = Unix.(ADDR_INET (inet_addr_any, port)) in
+let of_addr addr = 
   let sock = Lwt_unix.(socket PF_INET SOCK_STREAM 0) in
   try_lwt
     lwt () = Lwt_unix.connect sock addr in
     return (Done sock)
   with exn -> return (Fail exn)
+
+let of_port port =
+  let addr = Unix.(ADDR_INET (inet_addr_any, port)) in
+  of_addr addr
 
 let read sock buf start size = 
   let rec read' start to_read = 

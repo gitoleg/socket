@@ -23,7 +23,7 @@ type t = (server_info, server_msgs) Pipe.pipe_end
 
 let create_socket max port =
   let () = Sys.(set_signal sigpipe Signal_ignore) in
-  let addr = Unix.(ADDR_INET (inet_addr_loopback, port)) in
+  let addr = Unix.(ADDR_INET (inet_addr_any, port)) in
   let sock = Lwt_unix.(socket PF_INET SOCK_STREAM 0) in
   Lwt_unix.setsockopt sock Lwt_unix.SO_REUSEADDR true;
   Lwt_unix.bind sock addr;
@@ -73,7 +73,7 @@ let run_server ~holdon ~max ~port pipe_end =
         let clients' = 
           Hashtbl.fold (fun id fd acc -> (id,fd) :: acc) clients [] in
         lwt result = 
-          Lwt_list.map_p (fun c -> send_to_client c data) clients' in      
+          Lwt_list.map_s (fun c -> send_to_client c data) clients' in      
         let () = 
           if not holdon then
             List.iter (fun r -> match r with 
