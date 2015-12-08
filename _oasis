@@ -1,8 +1,7 @@
 OASISFormat: 0.4
 Name:        socket
 Version:     1.0
-Synopsis:    Suitable module for server/client communication
-             over tcp/ip protocol
+Synopsis:    Suitable modules for server/client communication
 Authors:     Oleg Kamenkov <forown@yandex.ru>
 License:     MIT
 Plugins:     DevFiles (0.4)
@@ -10,6 +9,6 @@ BuildTools:  ocamlbuild
 
 Library socket
   Path:           lib/
-  Modules:        Socket
+  Modules:        Client, Monitor, Pipe, Result, Server
   BuildDepends:   lwt, lwt.unix, lwt.syntax, uuidm
 
