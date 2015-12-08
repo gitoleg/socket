@@ -73,7 +73,7 @@ let run_server ~holdon ~max ~port pipe_end =
         let clients' = 
           Hashtbl.fold (fun id fd acc -> (id,fd) :: acc) clients [] in
         lwt result = 
-          Lwt_list.map_s (fun c -> send_to_client c data) clients' in      
+          Lwt_list.map_p (fun c -> send_to_client c data) clients' in      
         let () = 
           if not holdon then
             List.iter (fun r -> match r with 
