@@ -5,29 +5,21 @@ open Result
 
 type fd = Lwt_unix.file_descr
 
-(** requests to running server  *)
-type requests = [
-  | `Request_count  (** clients count  *)
-  | `Request_addr   (** server address *)
-]
+type server_info = {
+  clients : int;
+  address : Unix.sockaddr;
+}
 
 exception Shutdowned
-exception Request_failed of string
 
 (** messages to running server  *)
 type server_msgs = [ 
-  | requests
-  | `Data of string
+  | `Request_info
+  | `Send of string
   | `Stop      
 ]
 
-(** answers from running server *)
-type msg = [
-  | `Clients of int
-  | `Address of Unix.sockaddr
-]
-
-type t = (msg, server_msgs) Pipe.pipe_end
+type t = (server_info, server_msgs) Pipe.pipe_end
 
 let create_socket max port =
   let () = Sys.(set_signal sigpipe Signal_ignore) in
@@ -71,14 +63,13 @@ let run_server ~holdon ~max ~port pipe_end =
     match_lwt Pipe.get pipe_end with 
     | None -> run' ()
     | Some msg -> match msg with
-      |`Request_count ->
-        let count = Hashtbl.length clients in
-        Pipe.push pipe_end (`Clients count);
+      |`Request_info ->
+        let clients = Hashtbl.length clients in
+        let address = Lwt_unix.getsockname sock in
+        let info = {clients; address} in
+        Pipe.push pipe_end info;
         run' () 
-      | `Request_addr ->
-        Pipe.push pipe_end (`Address (Lwt_unix.getsockname sock));
-        run' ()
-      | `Data data ->
+      | `Send data ->
         let clients' = 
           Hashtbl.fold (fun id fd acc -> (id,fd) :: acc) clients [] in
         lwt result = 
@@ -102,25 +93,23 @@ let of_port ?(holdon=false) ?(max=10) port : t =
   ignore (run_server ~holdon ~max ~port pipe_end');
   pipe_end
 
-let request_error msg = fail (Request_failed msg)
-
 let push_request pipe_end request =
   try
     Pipe.push pipe_end request;
     return_unit
   with Pipe.Closed -> fail Shutdowned
-  
+
+let get_info pipe_end = 
+  lwt () = push_request pipe_end `Request_info in
+  Pipe.next pipe_end 
+
 let clients pipe_end = 
-  lwt () = push_request pipe_end `Request_count in
-  match_lwt Pipe.next pipe_end with 
-  | `Clients n -> return n
-  | _ -> request_error "clients count"
+  lwt info = get_info pipe_end in
+  return info.clients
 
 let address pipe_end = 
-  lwt () = push_request pipe_end `Request_addr in
-  match_lwt Pipe.next pipe_end with
-  | `Address a -> return a
-  | _ -> request_error "server address" 
+  lwt info = get_info pipe_end in
+  return info.address
 
 let no_clients t = 
   lwt count = clients t in
@@ -128,7 +117,7 @@ let no_clients t =
 
 let send pipe_end msg = 
   try
-    Pipe.push pipe_end (`Data msg)
+    Pipe.push pipe_end (`Send msg)
   with Pipe.Closed -> raise Shutdowned
 
 let shutdown pipe_end = 
