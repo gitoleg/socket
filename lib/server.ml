@@ -102,8 +102,6 @@ let of_port ?(holdon=false) ?(max=10) port : t =
   ignore (run_server ~holdon ~max ~port pipe_end');
   pipe_end
 
-(** raises Request_error, but now I don't see
-    how it coult be *)
 let request_error msg = fail (Request_failed msg)
 
 let push_request pipe_end request =
